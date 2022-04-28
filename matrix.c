@@ -26,22 +26,7 @@ matrix * init_matrix(int rows, int cols, MATRIX_ERR *err) {
     }
     mt->rows = rows;
     mt->cols = cols;
-    mt->arr = (int **)malloc(rows * sizeof(int *));
-    if (mt->arr == NULL) {
-        fprintf(stderr, "Not enough memory\n");
-        if (err != NULL)
-            *err = EMALLOC;
-        return NULL;
-    }
-    for (int i = 0; i < rows; i++) {
-        mt->arr[i] = (int *)malloc(cols * sizeof(int));
-        if (mt->arr[i] == NULL) {
-            fprintf(stderr, "Not enough memory\n");
-            if (err != NULL)
-                *err = EMALLOC;
-            return NULL;
-        }
-    }
+    mt->arr = NULL;
     *err = ESUCCESS;
     return mt;
 }
@@ -54,9 +39,9 @@ void remove_matrix(matrix * mt, MATRIX_ERR *err) {
         return;
     }
     if (mt->arr == NULL) {
-        fprintf(stderr, "Invalid argument: matrix is empty\n");
-        if (err != NULL)
-            *err = EINVARG;
+        free(mt->arr);
+        free(mt);
+        *err = ESUCCESS;
         return;
     }
     for (int i  = 0; i < mt->rows; i++) {
@@ -87,15 +72,39 @@ matrix * fill_matrix(matrix * mt, MATRIX_ERR *err) {
     int col_curr = 0;
     int number = 0;
     int f = 0;
+    int f1 = 1;
+    int f2 = 1;
     char ch[2];
 
     matrix * tmt = init_matrix(mt->rows, mt->cols, err);
-    
+    tmt->arr = (int **)malloc(tmt->rows * sizeof(int *));
+    if (tmt->arr == NULL) {
+        fprintf(stderr, "Not enough memory\n");
+        if (err != NULL)
+            *err = EMALLOC;
+        return NULL;
+    }
+    for (int i = 0; i < tmt->rows; i++) {
+        tmt->arr[i] = (int *)malloc(tmt->cols * sizeof(int));
+        if (tmt->arr[i] == NULL) {
+            fprintf(stderr, "Not enough memory\n");
+            if (err != NULL)
+                *err = EMALLOC;
+            return NULL;
+        }
+    }
     while (1) {
 
         fgets(ch, sizeof(ch), stdin); // считали символ
 
         if (ch[0] == '\n') {
+            if ((f1 == 1) || (f2 == 1)) {
+                fprintf(stderr, "Invalid argument: symbols before new line\n");
+                if (err != NULL)
+                    *err = EINVARG;
+                remove_matrix(tmt, err);
+                return mt;
+            }
             tmt->arr[row_curr][col_curr] = number;
             break;
         } // обработали случай конца строки
@@ -107,6 +116,32 @@ matrix * fill_matrix(matrix * mt, MATRIX_ERR *err) {
             remove_matrix(tmt, err);
             return mt;
         } // проверили на правильность ввода символа
+
+        if ((f1 == 1) && (ch[0] == ' ')) {
+            fprintf(stderr, "Invalid argument: two spaces in a row\n");
+            if (err != NULL)
+                *err = EINVARG;
+            remove_matrix(tmt, err);
+            return mt;
+        }
+        if (ch[0] == ' ') {
+            f1 = 1;
+        } else {
+            f1 = 0;
+        } // обработали случай двух пробелов
+
+        if ((f2 == 1) && (ch[0] == ';')) {
+            fprintf(stderr, "Invalid argument: two ; in a row\n");
+            if (err != NULL)
+                *err = EINVARG;
+            remove_matrix(tmt, err);
+            return mt;
+        }
+        if (ch[0] == ';') {
+            f2 = 1;
+        } else {
+            f2 = 0;
+        } // обработали случай двух ;
 
         // проверка значений колонок и строк
         if (col_curr >= tmt->cols) {
@@ -185,6 +220,7 @@ void print_matrix(matrix * mt, MATRIX_ERR *err) {
         fprintf(stderr, "Invalid argument: matrix is not initialized(remove)\n");
         if (err != NULL)
             *err = EINVARG;
+        return;
     }
     if (mt->arr == NULL) {
         fprintf(stderr, "Invalid argument: matrix is empty\n");
@@ -200,10 +236,205 @@ void print_matrix(matrix * mt, MATRIX_ERR *err) {
     *err = ESUCCESS;
 }
 
-matrix * clear_matrix(matrix * mt, MATRIX_ERR *err);
+matrix * clear_matrix(matrix * mt, MATRIX_ERR *err) {
+    if (mt == NULL) {
+        fprintf(stderr, "Invalid argument: matrix is not initialized(remove)\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return mt;
+    }
+    if (mt->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return mt;
+    }
+    for (int i  = 0; i < mt->rows; i++) {
+        if (mt->arr[i] == NULL) {
+            fprintf(stderr, "Invalid argument: matrix doesn't have a row\n");
+            if (err != NULL)
+                *err = EINVARG;
+            return mt;
+        }
+        free(mt->arr[i]);
+    }
+    free(mt->arr);
+    mt->arr = NULL;
+    *err = ESUCCESS;
+    return mt;
+}
 
-matrix * add_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err);
+matrix * add_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err) {
+    if (mt1 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt1->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if ((mt1->cols != mt2->cols) || (mt1->rows != mt2->rows)) {
+        fprintf(stderr, "Invalid argument: rows or cols not equal\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    matrix * tmt = init_matrix(mt1->rows, mt1->cols, err);
+    tmt->arr = (int **)malloc(tmt->rows * sizeof(int *));
+    if (tmt->arr == NULL) {
+        fprintf(stderr, "Not enough memory\n");
+        if (err != NULL)
+            *err = EMALLOC;
+        return NULL;
+    }
+    for (int i = 0; i < tmt->rows; i++) {
+        tmt->arr[i] = (int *)malloc(tmt->cols * sizeof(int));
+        if (tmt->arr[i] == NULL) {
+            fprintf(stderr, "Not enough memory\n");
+            if (err != NULL)
+                *err = EMALLOC;
+            return NULL;
+        }
+    }
+    for (int i = 0; i < mt1->rows; i++) {
+        for (int j = 0; j < mt1->cols; j++) {
+            tmt->arr[i][j] =  mt1->arr[i][j] + mt2->arr[i][j];
+        }
+    }
+    *err = ESUCCESS;
+    return tmt;
+}
 
-matrix * sub_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err);
+matrix * sub_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err) {
+    if (mt1 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt1->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if ((mt1->cols != mt2->cols) || (mt1->rows != mt2->rows)) {
+        fprintf(stderr, "Invalid argument: rows or cols not equal\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    matrix * tmt = init_matrix(mt1->rows, mt1->cols, err);
+    tmt->arr = (int **)malloc(tmt->rows * sizeof(int *));
+    if (tmt->arr == NULL) {
+        fprintf(stderr, "Not enough memory\n");
+        if (err != NULL)
+            *err = EMALLOC;
+        return NULL;
+    }
+    for (int i = 0; i < tmt->rows; i++) {
+        tmt->arr[i] = (int *)malloc(tmt->cols * sizeof(int));
+        if (tmt->arr[i] == NULL) {
+            fprintf(stderr, "Not enough memory\n");
+            if (err != NULL)
+                *err = EMALLOC;
+            return NULL;
+        }
+    }
+    for (int i = 0; i < mt1->rows; i++) {
+        for (int j = 0; j < mt1->cols; j++) {
+            tmt->arr[i][j] =  mt1->arr[i][j] - mt2->arr[i][j];
+        }
+    }
+    *err = ESUCCESS;
+    return tmt;
+}
 
-matrix * mult_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err);
+matrix * mult_matrix(matrix * mt1, matrix * mt2, MATRIX_ERR *err) {
+    if (mt1 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt1->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix1 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2 == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt2->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix2 is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    if (mt1->cols != mt2->rows) {
+        fprintf(stderr, "Invalid argument: number of cols in mt1 is not equal to number of rows in mt2\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return NULL;
+    }
+    matrix * tmt = init_matrix(mt1->rows, mt2->cols, err);
+    tmt->arr = (int **)malloc(tmt->rows * sizeof(int *));
+    if (tmt->arr == NULL) {
+        fprintf(stderr, "Not enough memory\n");
+        if (err != NULL)
+            *err = EMALLOC;
+        return NULL;
+    }
+    for (int i = 0; i < tmt->rows; i++) {
+        tmt->arr[i] = (int *)malloc(tmt->cols * sizeof(int));
+        if (tmt->arr[i] == NULL) {
+            fprintf(stderr, "Not enough memory\n");
+            if (err != NULL)
+                *err = EMALLOC;
+            return NULL;
+        }
+    }
+    for (int i = 0; i < mt1->rows; i++) {
+        for (int j = 0; j < mt2->cols; j++) {
+            int number = 0;
+            for (int k = 0; k < mt2->rows; k++) {
+                number += mt1->arr[i][k] * mt2->arr[k][j];
+            }
+            tmt->arr[i][j] = number;
+        }
+    }
+    *err = ESUCCESS;
+    return tmt;
+}

@@ -44,7 +44,32 @@ matrix * init_matrix(int rows, int cols, MATRIX_ERR *err) {
     return mt;
 }
 
-void remove_matrix(matrix * mt, MATRIX_ERR *err);
+void remove_matrix(matrix * mt, MATRIX_ERR *err) {
+    if (mt == NULL) {
+        fprintf(stderr, "Invalid argument: matrix is not initialized\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return;
+    }
+    if (mt->arr == NULL) {
+        fprintf(stderr, "Invalid argument: matrix is empty\n");
+        if (err != NULL)
+            *err = EINVARG;
+        return;
+    }
+    for (int i  = 0; i < mt->rows; i++) {
+        if (mt->arr[i] == NULL) {
+            fprintf(stderr, "Invalid argument: matrix doesn't have a row\n");
+            if (err != NULL)
+                *err = EINVARG;
+            return;
+        }
+        free(mt->arr[i]);
+    }
+    free(mt->arr);
+    free(mt);
+    *err = ESUCCESS;
+}
 
 matrix * fill_matrix(matrix * mt, MATRIX_ERR *err);
 
